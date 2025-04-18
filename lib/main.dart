@@ -6,19 +6,62 @@ import 'package:flutter_db_app/model/film_note.dart';
 import 'package:flutter_db_app/service/database_helper.dart';
 import 'package:flutter_db_app/theme/theme.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:influxdb_client/api.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+    if (Platform.isWindows || Platform.isLinux) {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
   SharedPreferences preferences = await SharedPreferences.getInstance();
   bool isDarkMode = preferences.getBool("isDarkTheme") ?? false;
   runApp(ChangeNotifierProvider(
     create: (BuildContext context) => ThemeProvider(isDarkMode: isDarkMode),
     child: MainApp(),
   ));
+
+  // await initializeInfluxDBClient(isDarkMode ? 2 : 1);
 }
+
+// InfluxDBClient? client;
+
+// Future<void> initializeInfluxDBClient(int mode) async {
+//   var token = 'U1PQtJlRAYMUdfAeV_g5DoogDjJ6oOUHBQlO4LX-74w2mnJU2Rwhw8SMW6SGHBlJ1REYJbK9eiOa3PPAYXIp4Q==';
+//   var bucket = 'metrics';
+//   var org = 'MPT';
+
+//   try {
+//     client = InfluxDBClient(
+//         url: 'http://10.0.2.2:8086',
+//         token: token,
+//         org: org,
+//         bucket: bucket);
+
+//     var point = Point('mode')
+//     .addField('mode', mode)
+//     .time(DateTime.now().toUtc());
+
+//     var writeService = client!.getWriteService();
+//     await writeService.write(point).then((value) {
+//       print('Write completed');
+//     }).catchError((exception) {
+//       print(exception);
+//     });
+
+
+//     print('все ОК.');
+//     client?.close();
+//   } catch (e) {
+//     print('$e');
+    
+//   }
+//}
+
 
 class MainApp extends StatelessWidget {
   const MainApp({super.key});
@@ -26,24 +69,24 @@ class MainApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<ThemeProvider>(
-      builder: (context, themeProvider, child){
-        return MaterialApp(
-          theme: themeProvider.getTheme,
-          onGenerateRoute: (settings) {
-            switch (settings.name) {
-              case '/modify':
-                final int? filmId = settings.arguments as int?;
-                return MaterialPageRoute(
-                  builder: (_) => ModifyPage(filmId: filmId),
-                );
-              case '/home':
-              default:
-                return MaterialPageRoute(builder: (_) => ListFilms());
-            }
-          },
-          initialRoute: '/home',
-        );
-      }
+        builder: (context, themeProvider, child){
+          return MaterialApp(
+            theme: themeProvider.getTheme,
+            onGenerateRoute: (settings) {
+              switch (settings.name) {
+                case '/modify':
+                  final int? filmId = settings.arguments as int?;
+                  return MaterialPageRoute(
+                    builder: (_) => ModifyPage(filmId: filmId),
+                  );
+                case '/home':
+                default:
+                  return MaterialPageRoute(builder: (_) => ListFilms());
+              }
+            },
+            initialRoute: '/home',
+          );
+        }
     );
   }
 }
@@ -79,14 +122,14 @@ class _ListFilmsScreenState extends State<ListFilms> {
         title: Text("Home"),
         actions: <Widget>[
           IconButton(
-            onPressed: (){
-              ThemeProvider themeProvider = Provider.of<ThemeProvider>(
-                context,
-                listen: false,
-              );
-              themeProvider.swapTheme();
-            }, 
-            icon:Icon(Icons.brightness_6)
+              onPressed: (){
+                ThemeProvider themeProvider = Provider.of<ThemeProvider>(
+                  context,
+                  listen: false,
+                );
+                themeProvider.swapTheme();
+              },
+              icon:Icon(Icons.brightness_6)
           )
         ],
       ),
@@ -94,19 +137,19 @@ class _ListFilmsScreenState extends State<ListFilms> {
         child: Column(
           children: [
             Expanded(
-              child: ListView.builder(
-                itemCount: _notes.length,
-                itemBuilder: (context, index) {
-                  return _buildItem(_notes[index]);
-                },
-              )
+                child: ListView.builder(
+                  itemCount: _notes.length,
+                  itemBuilder: (context, index) {
+                    return _buildItem(_notes[index]);
+                  },
+                )
             ),
             FloatingActionButton(
-              onPressed: () async{
-                await Navigator.pushNamed(context, '/modify');
-                _loadNotes();
-              }, 
-              child: Icon(Icons.add))
+                onPressed: () async{
+                  await Navigator.pushNamed(context, '/modify');
+                  _loadNotes();
+                },
+                child: Icon(Icons.add))
           ],
         ),
       ),
@@ -129,7 +172,7 @@ class _ListFilmsScreenState extends State<ListFilms> {
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) => Icon(Icons.image_not_supported),
             )
-            : note.imageUrl != null ? 
+                : note.imageUrl != null ?
             Image.network(
               note.imageUrl!,
               width: 80,
@@ -137,7 +180,7 @@ class _ListFilmsScreenState extends State<ListFilms> {
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) => Icon(Icons.image_not_supported),
             )
-            : Text("Нет превью"),
+                : Text("Нет превью"),
             const SizedBox(width: 10.0),
             Expanded(
               child: Column(
@@ -156,13 +199,13 @@ class _ListFilmsScreenState extends State<ListFilms> {
                 _loadNotes();
               },
             ),
-            
+
             IconButton(
               icon: Icon(Icons.delete),
               onPressed: () async {
                 await _databaseHelper.deleteFilm(note.id);
                 _loadNotes();
-               
+
               },
             ),
           ],
@@ -251,6 +294,9 @@ class _ModifyPageState extends State<ModifyPage> {
     Navigator.pop(context);
   }
 
+
+  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -270,8 +316,8 @@ class _ModifyPageState extends State<ModifyPage> {
                 _imageController.text,
                 height: 200,
                 errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported, size: 100),
-            ),
-          const SizedBox(height: 10),
+              ),
+            const SizedBox(height: 10),
             TextField(
               controller: _titleController,
               decoration: const InputDecoration(labelText: 'Название'),
@@ -293,15 +339,15 @@ class _ModifyPageState extends State<ModifyPage> {
             _selectedImage != null
                 ? Image.file(_selectedImage!, height: 150)
                 : _imageController.text.isNotEmpty
-                    ? Image.network(
-                        _imageController.text,
-                        height: 150,
-                        errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported),
-                      )
-                    : Container(
-                        height: 150,
-                        color: Colors.grey[300],
-                        child: const Center(child: Text('Нет изображения'))),
+                ? Image.network(
+              _imageController.text,
+              height: 150,
+              errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported),
+            )
+                : Container(
+                height: 150,
+                color: Colors.grey[300],
+                child: const Center(child: Text('Нет изображения'))),
             Row(
               children: [
                 ElevatedButton.icon(
@@ -322,5 +368,4 @@ class _ModifyPageState extends State<ModifyPage> {
     );
   }
 }
-
 

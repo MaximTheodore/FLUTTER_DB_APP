@@ -10,10 +10,13 @@ dependencies:
   flutter:
     sdk: flutter
   sqflite: ^2.0.0+4
+  sqflite_common_ffi: ^2.3.0
   path_provider: ^2.0.2
   image_picker: ^1.1.2
   provider: ^6.1.2
-  shared_preferences: ^2.5.1
+  shared_preferences: ^2.5.2
+
+  influxdb_client: ^2.6.0
 
 
 
