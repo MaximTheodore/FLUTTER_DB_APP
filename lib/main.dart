@@ -242,127 +242,57 @@ class _ModifyPageState extends State<ModifyPage> {
     }
   }
 
-  Future<void> _loadFilm(int id) async {
-    final film = await _databaseHelper.getFilmById(id);
-    setState(() {
-      _titleController.text = film.title;
-      _genreController.text = film.genre;
-      _yearController.text = film.year;
-      _imageBytes = film.image;
-      if (film.imageUrl != null) {
-        _imageController.text = film.imageUrl!;
-      }
-    });
-  }
-
-  Future<void> _pickImage() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      final bytes = await File(pickedFile.path).readAsBytes();
-      setState(() {
-        _imageBytes = bytes;
-        _selectedImage = File(pickedFile.path);
-      });
-    }
-  }
-
-  Future<void> _saveFilm() async {
-    if (_titleController.text.isEmpty ||
-        _genreController.text.isEmpty ||
-        _yearController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Заполните все обязательные поля')),
-      );
-      return;
-    }
-
-    final film = FilmNote(
-      id: widget.filmId,
-      title: _titleController.text,
-      genre: _genreController.text,
-      year: _yearController.text,
-      image: _selectedImage != null ? _imageBytes : _imageBytes,
-      imageUrl: _imageController.text.isNotEmpty ? _imageController.text : null,
-    );
-
-    if (widget.filmId == null) {
-      await _databaseHelper.insertFilm(film);
-    } else {
-      await _databaseHelper.updateFilm(film);
-    }
-
-    Navigator.pop(context);
-  }
-
-
   
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    var noteList = context.watch<NoteItemProvider>();
+    return Scaffold( 
       appBar: AppBar(
-        title: Text(widget.filmId == null ? 'Добавить' : 'Изменить'),
+        title: Text(widget.index == -1 ? 'Add' : 'Edit'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: Container(
+        alignment: Alignment.center,
+        margin: EdgeInsets.all(50),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            if (_selectedImage != null)
-              Image.file(_selectedImage!, height: 200)
-            else if (_imageBytes != null)
-              Image.memory(_imageBytes!, height: 200)
-            else if (_imageController.text.isNotEmpty)
-              Image.network(
-                _imageController.text,
-                height: 200,
-                errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported, size: 100),
-              ),
-            const SizedBox(height: 10),
             TextField(
-              controller: _titleController,
-              decoration: const InputDecoration(labelText: 'Название'),
-            ),
-            TextField(
-              controller: _genreController,
-              decoration: const InputDecoration(labelText: 'Жанр'),
-            ),
-            TextField(
-              controller: _yearController,
-              decoration: const InputDecoration(labelText: 'Год'),
-              keyboardType: TextInputType.number,
-            ),
-            TextField(
-              controller: _imageController,
-              decoration: const InputDecoration(labelText: 'Ссылка на изображение'),
-            ),
-            const SizedBox(height: 10),
-            _selectedImage != null
-                ? Image.file(_selectedImage!, height: 150)
-                : _imageController.text.isNotEmpty
-                ? Image.network(
-              _imageController.text,
-              height: 150,
-              errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported),
-            )
-                : Container(
-                height: 150,
-                color: Colors.grey[300],
-                child: const Center(child: Text('Нет изображения'))),
-            Row(
-              children: [
-                ElevatedButton.icon(
-                  onPressed: _pickImage,
-                  icon: const Icon(Icons.image),
-                  label: const Text('Выбрать из галереи'),
+              
+              controller: _controller,
+              decoration: InputDecoration(
+                border: UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.black),
                 ),
-              ],
+                contentPadding: EdgeInsets.only(
+                  top: 10,
+                  left: 10,
+                  right: 10
+                  ),
+                hintText: "Введите заметку"
+              ),
             ),
-            const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: _saveFilm,
-              child: const Text('Сохранить'),
-            ),
+              onPressed: (){
+                setState(() {
+                  if (widget.index == -1 && _controller.text.isNotEmpty) {
+                    noteList.addNoteItem(_controller.text);
+                  } else {
+                    noteList.getNoteItem(widget.index).name = _controller.text;
+                  }
+                });
+                Navigator.pushNamed(context, '/home');
+              }, 
+              child: Text(widget.index == -1 ? 'Добавить' : 'Изменить')),
+              SizedBox(height: 40),
+              ElevatedButton(
+                onPressed: (){
+                  Navigator.pushNamed(context, '/home');
+                }, 
+                child: Text("Назад"))
           ],
+
+          
         ),
       ),
     );
